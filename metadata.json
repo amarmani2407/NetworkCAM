@@ -1,0 +1,6 @@
+{
+  "name": "LocalCam Streamer - Secure Android Camera & Web Viewer",
+  "description": "Production-grade Android security camera app with Ktor TLS server, CameraX pipeline, and interactive companion studio.",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
