@@ -388,6 +388,88 @@ dependencies {
 </resources>
 `,
   },
+  {
+    path: 'app/src/main/res/drawable/ic_launcher_background.xml',
+    category: 'manifest',
+    description: 'Adaptive launcher icon background',
+    content: `<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#0F172A"
+        android:pathData="M0,0h108v108h-108z" />
+</vector>
+`,
+  },
+  {
+    path: 'app/src/main/res/drawable/ic_launcher_foreground.xml',
+    category: 'manifest',
+    description: 'Adaptive launcher icon foreground vector',
+    content: `<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="0.5"
+        android:scaleY="0.5"
+        android:translateX="27"
+        android:translateY="27">
+        <path
+            android:fillColor="#10B981"
+            android:pathData="M18,4l2,4h-3.17L15,6H9L7.17,8H4c-1.1,0 -2,0.9 -2,2v12c0,1.1 0.9,2 2,2h16c1.1,0 2,-0.9 2,-2V10c0,-1.1 -0.9,-2 -2,-2h-2zm-6,16c-2.76,0 -5,-2.24 -5,-5s2.24,-5 5,-5 5,2.24 5,5 -2.24,5 -5,5zm0,-8c-1.66,0 -3,1.34 -3,3s1.34,3 3,3 3,-1.34 3,-3 -1.34,-3 -3,-3z" />
+    </group>
+</vector>
+`,
+  },
+  {
+    path: 'app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml',
+    category: 'manifest',
+    description: 'Adaptive icon definition for Android 8.0+',
+    content: `<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@drawable/ic_launcher_background" />
+    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+</adaptive-icon>
+`,
+  },
+  {
+    path: 'app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml',
+    category: 'manifest',
+    description: 'Adaptive round icon definition for Android 8.0+',
+    content: `<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@drawable/ic_launcher_background" />
+    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+</adaptive-icon>
+`,
+  },
+  {
+    path: 'app/src/main/res/mipmap/ic_launcher.xml',
+    category: 'manifest',
+    description: 'Universal fallback launcher icon',
+    content: `<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@drawable/ic_launcher_background" />
+    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+</adaptive-icon>
+`,
+  },
+  {
+    path: 'app/src/main/res/mipmap/ic_launcher_round.xml',
+    category: 'manifest',
+    description: 'Universal fallback round launcher icon',
+    content: `<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@drawable/ic_launcher_background" />
+    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+</adaptive-icon>
+`,
+  },
 
   // ==========================================
   // APPLICATION CLASS & REPOSITORY

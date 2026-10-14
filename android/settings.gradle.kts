@@ -20,4 +20,10 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "LocalCamStreamer"
-include(":app")
+
+if (file("app").isDirectory) {
+    include(":app")
+} else if (file("android/app").isDirectory) {
+    include(":app")
+    project(":app").projectDir = file("android/app")
+}

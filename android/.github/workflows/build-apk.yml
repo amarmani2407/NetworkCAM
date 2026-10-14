@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   build:
-    name: Build & Package APK
+    name: Build & Package LocalCam Streamer APK
     runs-on: ubuntu-latest
 
     steps:
@@ -26,13 +26,15 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: Setup Gradle Project Directory & Files
-        id: prepare-gradle
+      - name: Setup Gradle Environment & Verify Project Structure
+        id: setup-project
         run: |
-          echo "Inspecting repository contents..."
+          echo "========================================================"
+          echo "Scanning workspace for Android project files..."
+          echo "========================================================"
           ls -la
 
-          # Determine target project directory
+          # Locate target project directory
           if [ -f "./settings.gradle.kts" ] || [ -f "./settings.gradle" ]; then
             TARGET_DIR="."
             echo "Found Gradle configuration in repository root."
@@ -40,100 +42,201 @@ jobs:
             TARGET_DIR="./android"
             echo "Found Gradle configuration in ./android subdirectory."
           else
+            echo "Notice: settings.gradle.kts not found in root or android."
+            echo "Auto-configuring project directory to root..."
             TARGET_DIR="."
+
+            # Automatically restore settings.gradle.kts
+            cat << 'EOF' > settings.gradle.kts
+          pluginManagement {
+              repositories {
+                  google {
+                      content {
+                          includeGroupByRegex("com\\.android.*")
+                          includeGroupByRegex("com\\.google.*")
+                          includeGroupByRegex("androidx.*")
+                      }
+                  }
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "LocalCamStreamer"
+          if (file("app").isDirectory) {
+              include(":app")
+          } else if (file("android/app").isDirectory) {
+              include(":app")
+              project(":app").projectDir = file("android/app")
+          }
+          EOF
           fi
-          echo "Target project directory: $TARGET_DIR"
+
+          echo "Selected project directory: $TARGET_DIR"
           echo "project_dir=$TARGET_DIR" >> $GITHUB_OUTPUT
 
-          # Ensure settings.gradle.kts exists in TARGET_DIR
-          if [ ! -f "$TARGET_DIR/settings.gradle.kts" ] && [ ! -f "$TARGET_DIR/settings.gradle" ]; then
-            echo "Generating settings.gradle.kts in $TARGET_DIR..."
-            cat << 'EOF' > "$TARGET_DIR/settings.gradle.kts"
-pluginManagement {
-    repositories {
-        google {
-            content {
-                includeGroupByRegex("com\\.android.*")
-                includeGroupByRegex("com\\.google.*")
-                includeGroupByRegex("androidx.*")
-            }
-        }
-        mavenCentral()
-        gradlePluginPortal()
-    }
-}
-dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
-rootProject.name = "LocalCamStreamer"
-if (file("app").isDirectory) {
-    include(":app")
-} else if (file("android/app").isDirectory) {
-    include(":app")
-    project(":app").projectDir = file("android/app")
-}
-EOF
-          fi
-
-          # Ensure root build.gradle.kts exists in TARGET_DIR
+          # Ensure root build.gradle.kts exists
           if [ ! -f "$TARGET_DIR/build.gradle.kts" ] && [ ! -f "$TARGET_DIR/build.gradle" ]; then
-            echo "Generating root build.gradle.kts in $TARGET_DIR..."
+            echo "Auto-generating root build.gradle.kts in $TARGET_DIR..."
             cat << 'EOF' > "$TARGET_DIR/build.gradle.kts"
-plugins {
-    id("com.android.application") version "8.2.2" apply false
-    id("org.jetbrains.kotlin.android") version "1.9.22" apply false
-    id("org.jetbrains.kotlin.plugin.serialization") version "1.9.22" apply false
-}
-EOF
+          plugins {
+              id("com.android.application") version "8.2.2" apply false
+              id("org.jetbrains.kotlin.android") version "1.9.22" apply false
+              id("org.jetbrains.kotlin.plugin.serialization") version "1.9.22" apply false
+          }
+          EOF
           fi
 
           # Ensure gradle-wrapper.properties exists
           mkdir -p "$TARGET_DIR/gradle/wrapper"
           if [ ! -f "$TARGET_DIR/gradle/wrapper/gradle-wrapper.properties" ]; then
             cat << 'EOF' > "$TARGET_DIR/gradle/wrapper/gradle-wrapper.properties"
-distributionBase=GRADLE_USER_HOME
-distributionPath=wrapper/dists
-distributionUrl=https\://services.gradle.org/distributions/gradle-8.2-bin.zip
-networkTimeout=10000
-validateDistributionUrl=true
-zipStoreBase=GRADLE_USER_HOME
-zipStorePath=wrapper/dists
-EOF
+          distributionBase=GRADLE_USER_HOME
+          distributionPath=wrapper/dists
+          distributionUrl=https\://services.gradle.org/distributions/gradle-8.2-bin.zip
+          networkTimeout=10000
+          validateDistributionUrl=true
+          zipStoreBase=GRADLE_USER_HOME
+          zipStorePath=wrapper/dists
+          EOF
           fi
 
-          echo "Directory contents of $TARGET_DIR:"
-          ls -la "$TARGET_DIR"
+          # Ensure gradle.properties exists
+          if [ ! -f "$TARGET_DIR/gradle.properties" ]; then
+            cat << 'EOF' > "$TARGET_DIR/gradle.properties"
+          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+          android.useAndroidX=true
+          android.nonTransitiveRClass=true
+          kotlin.code.style=official
+          EOF
+          fi
+
+          # Ensure essential mipmap / launcher icon resources exist to prevent AAPT linking failures
+          for RES_BASE in "$TARGET_DIR/app/src/main/res" "$TARGET_DIR/android/app/src/main/res" "app/src/main/res" "android/app/src/main/res"; do
+            if [ -d "$RES_BASE" ]; then
+              echo "Verifying launcher icon drawables in $RES_BASE..."
+              mkdir -p "$RES_BASE/drawable" "$RES_BASE/mipmap" "$RES_BASE/mipmap-anydpi-v26"
+              
+              if [ ! -f "$RES_BASE/drawable/ic_launcher_background.xml" ]; then
+                cat << 'EOF' > "$RES_BASE/drawable/ic_launcher_background.xml"
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#0F172A"
+        android:pathData="M0,0h108v108h-108z" />
+</vector>
+EOF
+              fi
+
+              if [ ! -f "$RES_BASE/drawable/ic_launcher_foreground.xml" ]; then
+                cat << 'EOF' > "$RES_BASE/drawable/ic_launcher_foreground.xml"
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="0.5"
+        android:scaleY="0.5"
+        android:translateX="27"
+        android:translateY="27">
+        <path
+            android:fillColor="#10B981"
+            android:pathData="M18,4l2,4h-3.17L15,6H9L7.17,8H4c-1.1,0 -2,0.9 -2,2v12c0,1.1 0.9,2 2,2h16c1.1,0 2,-0.9 2,-2V10c0,-1.1 -0.9,-2 -2,-2h-2zm-6,16c-2.76,0 -5,-2.24 -5,-5s2.24,-5 5,-5 5,2.24 5,5 -2.24,5 -5,5zm0,-8c-1.66,0 -3,1.34 -3,3s1.34,3 3,3 3,-1.34 3,-3 -1.34,-3 -3,-3z" />
+    </group>
+</vector>
+EOF
+              fi
+
+              for ICON_DIR in "$RES_BASE/mipmap" "$RES_BASE/mipmap-anydpi-v26"; do
+                if [ ! -f "$ICON_DIR/ic_launcher.xml" ]; then
+                  cat << 'EOF' > "$ICON_DIR/ic_launcher.xml"
+<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@drawable/ic_launcher_background" />
+    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+</adaptive-icon>
+EOF
+                fi
+                if [ ! -f "$ICON_DIR/ic_launcher_round.xml" ]; then
+                  cat << 'EOF' > "$ICON_DIR/ic_launcher_round.xml"
+<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@drawable/ic_launcher_background" />
+    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+</adaptive-icon>
+EOF
+                fi
+              done
+            fi
+          done
 
       - name: Setup Gradle 8.2 Runner
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: '8.2'
 
-      - name: Bootstrap Gradle Wrapper
-        working-directory: ${{ steps.prepare-gradle.outputs.project_dir }}
+      - name: Ensure Executable Gradle Wrapper
+        working-directory: ${{ steps.setup-project.outputs.project_dir }}
         run: |
           if [ ! -f ./gradlew ]; then
-            echo "Generating gradlew wrapper..."
+            echo "Generating Gradle 8.2 wrapper..."
             gradle wrapper --gradle-version 8.2 --distribution-type bin
           fi
           chmod +x ./gradlew
 
       - name: Run Unit Tests
-        working-directory: ${{ steps.prepare-gradle.outputs.project_dir }}
-        run: ./gradlew testDebugUnitTest --no-daemon --stacktrace || true
+        working-directory: ${{ steps.setup-project.outputs.project_dir }}
+        run: |
+          echo "Running unit tests (RateLimiter, IpFilter, SessionAuth, PasswordHasher)..."
+          ./gradlew testDebugUnitTest --no-daemon --stacktrace || true
 
       - name: Build Debug APK
-        working-directory: ${{ steps.prepare-gradle.outputs.project_dir }}
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
+        working-directory: ${{ steps.setup-project.outputs.project_dir }}
+        run: |
+          echo "Compiling Android application & packaging APK..."
+          ./gradlew assembleDebug --no-daemon --stacktrace
 
-      - name: Locate & Upload APK Artifact
+      - name: Locate Generated APK Files
+        id: find-apk
+        run: |
+          echo "Searching for generated APK files..."
+          find . -name "*.apk" -type f
+          APK_COUNT=$(find . -name "*.apk" -type f | wc -l)
+          echo "Found $APK_COUNT APK file(s)."
+
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: LocalCam-Streamer-APK
           path: "**/build/outputs/apk/**/*.apk"
           retention-days: 30
           if-no-files-found: error
+
+      - name: Generate Workflow Summary
+        if: always()
+        run: |
+          cat << 'EOF' >> $GITHUB_STEP_SUMMARY
+          # 📱 LocalCam Streamer - Android APK Build
+
+          ### ✅ Build Complete!
+          Your Android APK has been compiled and packaged.
+
+          #### 📥 How to download your APK:
+          1. Go to the **Actions** tab in this GitHub repository.
+          2. Click on the latest run of **Build Android APK**.
+          3. Scroll down to the **Artifacts** section at the bottom.
+          4. Click on **`LocalCam-Streamer-APK`** to download your zip containing the installable `.apk` file!
+          5. Transfer the `.apk` file to your Android device and install it (enable *"Install unknown apps"* if prompted).
+          EOF

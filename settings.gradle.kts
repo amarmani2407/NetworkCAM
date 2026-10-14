@@ -21,7 +21,6 @@ dependencyResolutionManagement {
 
 rootProject.name = "LocalCamStreamer"
 
-// Support building from repository root regardless of folder structure
 if (file("app").isDirectory) {
     include(":app")
 } else if (file("android/app").isDirectory) {

@@ -343,6 +343,71 @@ jobs:
           EOF
           fi
 
+          # Ensure essential mipmap / launcher icon resources exist to prevent AAPT linking failures
+          for RES_BASE in "$TARGET_DIR/app/src/main/res" "$TARGET_DIR/android/app/src/main/res" "app/src/main/res" "android/app/src/main/res"; do
+            if [ -d "$RES_BASE" ]; then
+              echo "Verifying launcher icon drawables in $RES_BASE..."
+              mkdir -p "$RES_BASE/drawable" "$RES_BASE/mipmap" "$RES_BASE/mipmap-anydpi-v26"
+              
+              if [ ! -f "$RES_BASE/drawable/ic_launcher_background.xml" ]; then
+                cat << 'EOF' > "$RES_BASE/drawable/ic_launcher_background.xml"
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#0F172A"
+        android:pathData="M0,0h108v108h-108z" />
+</vector>
+EOF
+              fi
+
+              if [ ! -f "$RES_BASE/drawable/ic_launcher_foreground.xml" ]; then
+                cat << 'EOF' > "$RES_BASE/drawable/ic_launcher_foreground.xml"
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="0.5"
+        android:scaleY="0.5"
+        android:translateX="27"
+        android:translateY="27">
+        <path
+            android:fillColor="#10B981"
+            android:pathData="M18,4l2,4h-3.17L15,6H9L7.17,8H4c-1.1,0 -2,0.9 -2,2v12c0,1.1 0.9,2 2,2h16c1.1,0 2,-0.9 2,-2V10c0,-1.1 -0.9,-2 -2,-2h-2zm-6,16c-2.76,0 -5,-2.24 -5,-5s2.24,-5 5,-5 5,2.24 5,5 -2.24,5 -5,5zm0,-8c-1.66,0 -3,1.34 -3,3s1.34,3 3,3 3,-1.34 3,-3 -1.34,-3 -3,-3z" />
+    </group>
+</vector>
+EOF
+              fi
+
+              for ICON_DIR in "$RES_BASE/mipmap" "$RES_BASE/mipmap-anydpi-v26"; do
+                if [ ! -f "$ICON_DIR/ic_launcher.xml" ]; then
+                  cat << 'EOF' > "$ICON_DIR/ic_launcher.xml"
+<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@drawable/ic_launcher_background" />
+    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+</adaptive-icon>
+EOF
+                fi
+                if [ ! -f "$ICON_DIR/ic_launcher_round.xml" ]; then
+                  cat << 'EOF' > "$ICON_DIR/ic_launcher_round.xml"
+<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@drawable/ic_launcher_background" />
+    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+</adaptive-icon>
+EOF
+                fi
+              done
+            fi
+          done
+
       - name: Setup Gradle 8.2 Runner
         uses: gradle/actions/setup-gradle@v3
         with:
@@ -386,6 +451,20 @@ jobs:
                   </div>
                   <p className="text-[11px] text-slate-400 leading-relaxed">
                     If your GitHub repository already exists, you can simply edit <code className="text-white font-mono">.github/workflows/build-apk.yml</code> directly on GitHub with the pencil icon, paste this content, and click <strong>Commit changes</strong>. It will immediately trigger a build!
+                  </p>
+                </div>
+
+                {/* Error: AAPT mipmap/ic_launcher not found */}
+                <div className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/30 text-xs text-purple-200 space-y-2.5">
+                  <div className="font-bold text-purple-300 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-purple-400" />
+                    <span>Fixed: "AAPT: error: resource mipmap/ic_launcher not found"</span>
+                  </div>
+                  <p className="leading-relaxed text-purple-200/90 text-[11px]">
+                    <strong>Why it happened:</strong> The Android manifest requested launcher icons (<code className="text-white font-mono">@mipmap/ic_launcher</code> &amp; <code className="text-white font-mono">@mipmap/ic_launcher_round</code>), but the mipmap XML files were not present in the repository res folder.
+                  </p>
+                  <p className="leading-relaxed text-purple-200/90 text-[11px]">
+                    <strong>How we fixed it:</strong> We generated modern adaptive launcher vector icons (<code className="text-emerald-400 font-mono">ic_launcher_background.xml</code>, <code className="text-emerald-400 font-mono">ic_launcher_foreground.xml</code>, and <code className="text-emerald-400 font-mono">ic_launcher.xml</code>). In addition, the updated workflow automatically generates them during CI if missing, ensuring AAPT never fails resource linking.
                   </p>
                 </div>
 
