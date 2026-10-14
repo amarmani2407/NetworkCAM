@@ -88,7 +88,13 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "LocalCamStreamer"
-include(":app")
+
+if (file("app").isDirectory) {
+    include(":app")
+} else if (file("android/app").isDirectory) {
+    include(":app")
+    project(":app").projectDir = file("android/app")
+}
 `,
   },
   {
@@ -3725,8 +3731,12 @@ jobs:
           ls -la
 
           # Determine target project directory
-          if [ -d "./android" ]; then
+          if [ -f "./settings.gradle.kts" ] || [ -f "./settings.gradle" ]; then
+            TARGET_DIR="."
+            echo "Found Gradle configuration in repository root."
+          elif [ -f "./android/settings.gradle.kts" ] || [ -f "./android/settings.gradle" ]; then
             TARGET_DIR="./android"
+            echo "Found Gradle configuration in ./android subdirectory."
           else
             TARGET_DIR="."
           fi
@@ -3758,7 +3768,12 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "LocalCamStreamer"
-include(":app")
+if (file("app").isDirectory) {
+    include(":app")
+} else if (file("android/app").isDirectory) {
+    include(":app")
+    project(":app").projectDir = file("android/app")
+}
 EOF
           fi
 
@@ -3816,8 +3831,8 @@ EOF
       - name: Locate & Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: LocalCam-Streamer-Debug-APK
-          path: "**/build/outputs/apk/debug/*.apk"
+          name: LocalCam-Streamer-APK
+          path: "**/build/outputs/apk/**/*.apk"
           retention-days: 30
           if-no-files-found: error
 `,

@@ -1,6 +1,12 @@
 pluginManagement {
     repositories {
-        google()
+        google {
+            content {
+                includeGroupByRegex("com\\.android.*")
+                includeGroupByRegex("com\\.google.*")
+                includeGroupByRegex("androidx.*")
+            }
+        }
         mavenCentral()
         gradlePluginPortal()
     }
@@ -12,6 +18,13 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
+
 rootProject.name = "LocalCamStreamer"
-include(":android:app")
-project(":android:app").projectDir = file("android/app")
+
+// Support building from repository root regardless of folder structure
+if (file("app").isDirectory) {
+    include(":app")
+} else if (file("android/app").isDirectory) {
+    include(":app")
+    project(":app").projectDir = file("android/app")
+}

@@ -7,7 +7,6 @@ const targetBase = path.resolve(process.cwd(), 'android');
 console.log('Writing all Android files to:', targetBase);
 
 for (const file of ANDROID_PROJECT_FILES) {
-  // If the path starts with .github, skip or write to root
   const destPath = path.join(targetBase, file.path);
   const dir = path.dirname(destPath);
   fs.mkdirSync(dir, { recursive: true });
@@ -15,10 +14,18 @@ for (const file of ANDROID_PROJECT_FILES) {
   console.log('Wrote:', destPath);
 }
 
-// Also ensure root settings.gradle.kts and build.gradle.kts exist so whether GitHub Actions builds root or android, both work!
-fs.writeFileSync(path.resolve(process.cwd(), 'settings.gradle.kts'), `pluginManagement {
+// Also ensure root build configuration files exist
+const rootDir = process.cwd();
+
+fs.writeFileSync(path.join(rootDir, 'settings.gradle.kts'), `pluginManagement {
     repositories {
-        google()
+        google {
+            content {
+                includeGroupByRegex("com\\\\.android.*")
+                includeGroupByRegex("com\\\\.google.*")
+                includeGroupByRegex("androidx.*")
+            }
+        }
         mavenCentral()
         gradlePluginPortal()
     }
@@ -30,9 +37,29 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
+
 rootProject.name = "LocalCamStreamer"
-include(":android:app")
-project(":android:app").projectDir = file("android/app")
+
+if (file("app").isDirectory) {
+    include(":app")
+} else if (file("android/app").isDirectory) {
+    include(":app")
+    project(":app").projectDir = file("android/app")
+}
+`, 'utf8');
+
+fs.writeFileSync(path.join(rootDir, 'build.gradle.kts'), `// Top-level build file
+plugins {
+    id("com.android.application") version "8.2.2" apply false
+    id("org.jetbrains.kotlin.android") version "1.9.22" apply false
+    id("org.jetbrains.kotlin.plugin.serialization") version "1.9.22" apply false
+}
+`, 'utf8');
+
+fs.writeFileSync(path.join(rootDir, 'gradle.properties'), `org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+android.useAndroidX=true
+android.nonTransitiveRClass=true
+kotlin.code.style=official
 `, 'utf8');
 
 console.log('Successfully written all files!');
