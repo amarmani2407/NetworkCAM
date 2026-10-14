@@ -213,6 +213,22 @@ export const UserGuide: React.FC<UserGuideProps> = ({ onExportZip, isExporting }
                   Send the <code className="text-white font-mono">app-debug.apk</code> to your phone (via WhatsApp, Google Drive, USB cable, or download directly from GitHub on your phone's browser). Tap the file to install, allow <em>"Install unknown apps"</em> when prompted, and launch <strong>LocalCam Streamer</strong>!
                 </p>
               </div>
+
+              {/* Troubleshooting: Directory does not contain a Gradle build */}
+              <div className="ml-8 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200 space-y-2.5">
+                <div className="font-bold text-amber-300 flex items-center gap-1.5">
+                  <AlertTriangle className="w-4 h-4 text-amber-400" />
+                  <span>Got Error: "Directory does not contain a Gradle build"?</span>
+                </div>
+                <p className="leading-relaxed text-amber-200/90">
+                  This happens if the unzipped folder was pushed as a subfolder (e.g. <code className="text-white font-mono">NetworkCAM/LocalCamStreamer/...</code>) rather than having <code className="text-white font-mono">settings.gradle.kts</code> in the repository root.
+                </p>
+                <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 space-y-1.5 font-sans">
+                  <div className="font-semibold text-white">How to fix it:</div>
+                  <p>Our updated <code className="text-emerald-400 font-mono">.github/workflows/build-apk.yml</code> now automatically detects your project even if it is inside a subfolder!</p>
+                  <p>In GitHub, go to <strong>.github/workflows/build-apk.yml</strong> &gt; click the <strong>Pencil icon (Edit)</strong> &gt; replace it with the updated workflow below &gt; click <strong>Commit changes</strong>. It will run and succeed!</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>

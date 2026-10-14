@@ -3718,27 +3718,53 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
+      - name: Locate Android Project Directory
+        id: locate
+        run: |
+          echo "Scanning repository directory structure..."
+          if [ -f "./settings.gradle.kts" ] || [ -f "./settings.gradle" ]; then
+            echo "project_dir=." >> \$GITHUB_OUTPUT
+            echo "Found Gradle project in repository root."
+          else
+            FOUND=\$(find . -maxdepth 3 \\( -name "settings.gradle.kts" -o -name "settings.gradle" \\) | head -n 1)
+            if [ -n "\$FOUND" ]; then
+              DIR=\$(dirname "\$FOUND")
+              echo "project_dir=\$DIR" >> \$GITHUB_OUTPUT
+              echo "Found Gradle project in subdirectory: \$DIR"
+            else
+              echo "ERROR: Neither settings.gradle.kts nor settings.gradle found in repository!"
+              ls -la
+              exit 1
+            fi
+          fi
 
-      - name: Ensure Gradle Wrapper Executable
+      - name: Setup Gradle 8.2
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.2'
+
+      - name: Ensure Gradle Wrapper in Project Directory
+        working-directory: \${{ steps.locate.outputs.project_dir }}
         run: |
           if [ ! -f ./gradlew ]; then
-            gradle wrapper
+            echo "Generating Gradle 8.2 wrapper..."
+            gradle wrapper --gradle-version 8.2 --distribution-type bin
           fi
           chmod +x ./gradlew
 
       - name: Run Unit Tests
-        run: ./gradlew testDebugUnitTest --no-daemon
+        working-directory: \${{ steps.locate.outputs.project_dir }}
+        run: ./gradlew testDebugUnitTest --no-daemon --stacktrace
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --no-daemon
+        working-directory: \${{ steps.locate.outputs.project_dir }}
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
 
-      - name: Upload Debug APK Artifact
+      - name: Locate & Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: LocalCam-Streamer-Debug-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: "**/build/outputs/apk/debug/*.apk"
           retention-days: 30
           if-no-files-found: error
 `,
