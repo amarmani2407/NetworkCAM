@@ -310,6 +310,21 @@ export const AndroidPhoneSimulator: React.FC<AndroidPhoneSimulatorProps> = ({
                 <span>{streamUrl}</span>
                 <span className="text-[9px] px-1.5 py-0.2 rounded bg-blue-950 text-blue-400 font-sans">HTTPS</span>
               </div>
+              <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[10px] text-amber-200/90 space-y-1">
+                <p className="font-medium flex items-center gap-1 text-amber-300">
+                  <span>💡</span> PC Browser note:
+                </p>
+                <p className="leading-snug">
+                  {streamUrl} is hosted by your physical Android phone running the APK on your local Wi-Fi. To test streaming right now on your computer, use the live viewer panel on the right or launch in a new tab:
+                </p>
+                <button
+                  type="button"
+                  onClick={() => window.open(window.location.origin + window.location.pathname + '?view=viewer', '_blank')}
+                  className="mt-1 w-full py-1 px-2 rounded bg-blue-600 hover:bg-blue-500 text-white font-medium text-[10px] flex items-center justify-center gap-1 transition-colors shadow-sm"
+                >
+                  <span>Open Web Viewer in Separate Browser Tab ↗</span>
+                </button>
+              </div>
 
               {/* Password Section */}
               <div className="pt-1 border-t border-slate-700/60">

@@ -1,8 +1,22 @@
+# Dependencies
 node_modules/
-build/
+.pnp
+.pnp.js
+
+# Production & Build outputs
 dist/
 coverage/
-.DS_Store
 *.log
+.DS_Store
+
+# Android & Gradle build caches
+.gradle/
+android/.gradle/
+android/app/build/
+**/build/
+local.properties
+*.hprof
+
+# Environment
 .env*
 !.env.example
