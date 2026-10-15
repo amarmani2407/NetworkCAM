@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">LocalCam Streamer</string>
+    <string name="notification_channel_name">Camera Streaming Service</string>
+    <string name="notification_channel_desc">Active network camera streaming service status</string>
+    <string name="notification_title">LocalCam Active</string>
+    <string name="notification_text">Secure camera streaming on local Wi-Fi</string>
+    <string name="action_stop">Stop Streaming</string>
+    <string name="privacy_title">Local Network Privacy Notice</string>
+    <string name="privacy_body">LocalCam Streamer will expose your camera feed and optional microphone audio to your local Wi-Fi network over TLS. Only devices with the auto-generated password can view the feed. Ensure you trust all devices on this Wi-Fi network before starting.</string>
+</resources>

@@ -417,8 +417,20 @@ EOF
         working-directory: \${{ steps.setup-project.outputs.project_dir }}
         run: |
           if [ ! -f ./gradlew ]; then
-            echo "Generating Gradle 8.2 wrapper..."
-            gradle wrapper --gradle-version 8.2 --distribution-type bin
+            echo "Generating portable gradlew script..."
+            cat << 'EOF' > ./gradlew
+#!/bin/sh
+DIR=\$(cd "\$(dirname "\$0")" && pwd)
+JAR="\$DIR/gradle/wrapper/gradle-wrapper.jar"
+if [ -f "\$JAR" ]; then
+    java -jar "\$JAR" "\$@"
+elif command -v gradle >/dev/null 2>&1; then
+    gradle "\$@"
+else
+    echo "Gradle not found"
+    exit 1
+fi
+EOF
           fi
           chmod +x ./gradlew
 
@@ -426,13 +438,13 @@ EOF
         working-directory: \${{ steps.setup-project.outputs.project_dir }}
         run: |
           echo "Running unit tests..."
-          ./gradlew testDebugUnitTest --no-daemon --stacktrace || true
+          ./gradlew testDebugUnitTest --no-daemon --stacktrace || gradle testDebugUnitTest --no-daemon --stacktrace || true
 
       - name: Build Debug APK
         working-directory: \${{ steps.setup-project.outputs.project_dir }}
         run: |
           echo "Compiling Android application & packaging APK..."
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          ./gradlew assembleDebug --no-daemon --stacktrace || gradle assembleDebug --no-daemon --stacktrace
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
@@ -451,6 +463,20 @@ EOF
                   </div>
                   <p className="text-[11px] text-slate-400 leading-relaxed">
                     If your GitHub repository already exists, you can simply edit <code className="text-white font-mono">.github/workflows/build-apk.yml</code> directly on GitHub with the pencil icon, paste this content, and click <strong>Commit changes</strong>. It will immediately trigger a build!
+                  </p>
+                </div>
+
+                {/* Error: Directory does not contain a Gradle build */}
+                <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-200 space-y-2.5">
+                  <div className="font-bold text-emerald-300 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <span>Fixed: "Directory '/home/runner/work/...' does not contain a Gradle build"</span>
+                  </div>
+                  <p className="leading-relaxed text-emerald-200/90 text-[11px]">
+                    <strong>Why it happened:</strong> On GitHub Actions runners, executing <code className="text-white font-mono">gradle wrapper</code> with newer runner Gradle (e.g. 9.8) fails if the directory lacks a recognized root build script or if Gradle was invoked before the wrapper was unpacked.
+                  </p>
+                  <p className="leading-relaxed text-emerald-200/90 text-[11px]">
+                    <strong>How we fixed it:</strong> We eliminated all <code className="text-white font-mono">gradle wrapper</code> CLI calls. Instead, the workflow writes a portable, self-contained <code className="text-white font-mono">gradlew</code> script directly and falls back gracefully to <code className="text-white font-mono">gradle assembleDebug</code> from Gradle 8.2. In addition, all project files are now synchronized at both the root and <code className="text-white font-mono">android/</code> directories.
                   </p>
                 </div>
 

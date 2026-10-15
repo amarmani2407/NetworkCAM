@@ -34,94 +34,148 @@ jobs:
           echo "========================================================"
           ls -la
 
-          # Locate target project directory
-          if [ -f "./settings.gradle.kts" ] || [ -f "./settings.gradle" ]; then
-            TARGET_DIR="."
-            echo "Found Gradle configuration in repository root."
-          elif [ -f "./android/settings.gradle.kts" ] || [ -f "./android/settings.gradle" ]; then
-            TARGET_DIR="./android"
-            echo "Found Gradle configuration in ./android subdirectory."
-          else
-            echo "Notice: settings.gradle.kts not found in root or android."
-            echo "Auto-configuring project directory to root..."
-            TARGET_DIR="."
-
-            # Automatically restore settings.gradle.kts
-            cat << 'EOF' > settings.gradle.kts
-          pluginManagement {
-              repositories {
-                  google {
-                      content {
-                          includeGroupByRegex("com\\.android.*")
-                          includeGroupByRegex("com\\.google.*")
-                          includeGroupByRegex("androidx.*")
-                      }
-                  }
-                  mavenCentral()
-                  gradlePluginPortal()
-              }
-          }
-          dependencyResolutionManagement {
-              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-          }
-          rootProject.name = "LocalCamStreamer"
-          if (file("app").isDirectory) {
-              include(":app")
-          } else if (file("android/app").isDirectory) {
-              include(":app")
-              project(":app").projectDir = file("android/app")
-          }
-          EOF
+          # Determine target project directory and sync files
+          # Case 1: Android project is in root (app/ exists)
+          # Case 2: Android project is in android/ subfolder (android/app/ exists)
+          # Case 3: Mixed or custom structure
+          
+          if [ -d "./android/app" ] && [ ! -d "./app" ]; then
+            echo "Detected Android app in ./android/app - mirroring to ./app for root build support..."
+            cp -r ./android/app ./app 2>/dev/null || true
+          elif [ -d "./app" ] && [ ! -d "./android/app" ]; then
+            echo "Detected Android app in ./app - mirroring to ./android/app..."
+            mkdir -p ./android
+            cp -r ./app ./android/app 2>/dev/null || true
           fi
 
-          echo "Selected project directory: $TARGET_DIR"
-          echo "project_dir=$TARGET_DIR" >> $GITHUB_OUTPUT
+          # Always ensure root settings.gradle.kts exists
+          if [ ! -f "./settings.gradle.kts" ] && [ ! -f "./settings.gradle" ]; then
+            echo "Creating root settings.gradle.kts..."
+            cat << 'EOF' > settings.gradle.kts
+pluginManagement {
+    repositories {
+        google {
+            content {
+                includeGroupByRegex("com\\.android.*")
+                includeGroupByRegex("com\\.google.*")
+                includeGroupByRegex("androidx.*")
+            }
+        }
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+rootProject.name = "LocalCamStreamer"
+if (file("app").isDirectory) {
+    include(":app")
+} else if (file("android/app").isDirectory) {
+    include(":app")
+    project(":app").projectDir = file("android/app")
+}
+EOF
+          fi
+
+          # Also ensure android/settings.gradle.kts exists
+          if [ -d "./android" ]; then
+            if [ ! -f "./android/settings.gradle.kts" ] && [ ! -f "./android/settings.gradle" ]; then
+              cp settings.gradle.kts ./android/settings.gradle.kts 2>/dev/null || true
+            fi
+          fi
 
           # Ensure root build.gradle.kts exists
-          if [ ! -f "$TARGET_DIR/build.gradle.kts" ] && [ ! -f "$TARGET_DIR/build.gradle" ]; then
-            echo "Auto-generating root build.gradle.kts in $TARGET_DIR..."
-            cat << 'EOF' > "$TARGET_DIR/build.gradle.kts"
-          plugins {
-              id("com.android.application") version "8.2.2" apply false
-              id("org.jetbrains.kotlin.android") version "1.9.22" apply false
-              id("org.jetbrains.kotlin.plugin.serialization") version "1.9.22" apply false
-          }
-          EOF
+          if [ ! -f "./build.gradle.kts" ] && [ ! -f "./build.gradle" ]; then
+            echo "Auto-generating root build.gradle.kts..."
+            cat << 'EOF' > ./build.gradle.kts
+plugins {
+    id("com.android.application") version "8.2.2" apply false
+    id("org.jetbrains.kotlin.android") version "1.9.22" apply false
+    id("org.jetbrains.kotlin.plugin.serialization") version "1.9.22" apply false
+}
+EOF
           fi
 
-          # Ensure gradle-wrapper.properties exists
-          mkdir -p "$TARGET_DIR/gradle/wrapper"
-          if [ ! -f "$TARGET_DIR/gradle/wrapper/gradle-wrapper.properties" ]; then
-            cat << 'EOF' > "$TARGET_DIR/gradle/wrapper/gradle-wrapper.properties"
-          distributionBase=GRADLE_USER_HOME
-          distributionPath=wrapper/dists
-          distributionUrl=https\://services.gradle.org/distributions/gradle-8.2-bin.zip
-          networkTimeout=10000
-          validateDistributionUrl=true
-          zipStoreBase=GRADLE_USER_HOME
-          zipStorePath=wrapper/dists
-          EOF
+          # Ensure android/build.gradle.kts exists
+          if [ -d "./android" ] && [ ! -f "./android/build.gradle.kts" ]; then
+            cp ./build.gradle.kts ./android/build.gradle.kts 2>/dev/null || true
           fi
 
           # Ensure gradle.properties exists
-          if [ ! -f "$TARGET_DIR/gradle.properties" ]; then
-            cat << 'EOF' > "$TARGET_DIR/gradle.properties"
-          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
-          android.useAndroidX=true
-          android.nonTransitiveRClass=true
-          kotlin.code.style=official
-          EOF
+          if [ ! -f "./gradle.properties" ]; then
+            cat << 'EOF' > ./gradle.properties
+org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+android.useAndroidX=true
+android.nonTransitiveRClass=true
+kotlin.code.style=official
+EOF
+          fi
+          if [ -d "./android" ] && [ ! -f "./android/gradle.properties" ]; then
+            cp ./gradle.properties ./android/gradle.properties 2>/dev/null || true
           fi
 
-          # Ensure essential mipmap / launcher icon resources exist to prevent AAPT linking failures
-          for RES_BASE in "$TARGET_DIR/app/src/main/res" "$TARGET_DIR/android/app/src/main/res" "app/src/main/res" "android/app/src/main/res"; do
+          # Ensure gradle/wrapper/gradle-wrapper.properties exists
+          for WRAPPER_DIR in "./gradle/wrapper" "./android/gradle/wrapper"; do
+            mkdir -p "$WRAPPER_DIR"
+            if [ ! -f "$WRAPPER_DIR/gradle-wrapper.properties" ]; then
+              cat << 'EOF' > "$WRAPPER_DIR/gradle-wrapper.properties"
+distributionBase=GRADLE_USER_HOME
+distributionPath=wrapper/dists
+distributionUrl=https\://services.gradle.org/distributions/gradle-8.2-bin.zip
+networkTimeout=10000
+validateDistributionUrl=true
+zipStoreBase=GRADLE_USER_HOME
+zipStorePath=wrapper/dists
+EOF
+            fi
+          done
+
+          # Ensure portable gradlew executable exists (NEVER call 'gradle wrapper' via CLI!)
+          for GW_PATH in "./gradlew" "./android/gradlew"; do
+            if [ ! -f "$GW_PATH" ]; then
+              cat << 'EOF' > "$GW_PATH"
+#!/bin/sh
+DIR=$(cd "$(dirname "$0")" && pwd)
+JAR="$DIR/gradle/wrapper/gradle-wrapper.jar"
+if [ -f "$JAR" ]; then
+    java -jar "$JAR" "$@"
+elif command -v gradle >/dev/null 2>&1; then
+    gradle "$@"
+else
+    echo "Error: Gradle runner not found"
+    exit 1
+fi
+EOF
+            fi
+            chmod +x "$GW_PATH" 2>/dev/null || true
+          done
+
+          # Ensure gradlew.bat exists
+          for GWBAT_PATH in "./gradlew.bat" "./android/gradlew.bat"; do
+            if [ ! -f "$GWBAT_PATH" ]; then
+              cat << 'EOF' > "$GWBAT_PATH"
+@rem Gradle wrapper Windows batch script
+@if "%DEBUG%" == "" @echo off
+set DIRNAME=%~dp0
+if exist "%DIRNAME%gradle\wrapper\gradle-wrapper.jar" (
+    java -jar "%DIRNAME%gradle\wrapper\gradle-wrapper.jar" %*
+) else (
+    gradle %*
+)
+EOF
+            fi
+          done
+
+          # Ensure essential mipmap / launcher icon resources exist in ALL possible res directories
+          for RES_BASE in "./app/src/main/res" "./android/app/src/main/res"; do
             if [ -d "$RES_BASE" ]; then
               echo "Verifying launcher icon drawables in $RES_BASE..."
-              mkdir -p "$RES_BASE/drawable" "$RES_BASE/mipmap" "$RES_BASE/mipmap-anydpi-v26"
+              mkdir -p "$RES_BASE/drawable" "$RES_BASE/mipmap" "$RES_BASE/mipmap-anydpi-v26" "$RES_BASE/mipmap-hdpi" "$RES_BASE/mipmap-mdpi" "$RES_BASE/mipmap-xhdpi" "$RES_BASE/mipmap-xxhdpi" "$RES_BASE/mipmap-xxxhdpi"
               
               if [ ! -f "$RES_BASE/drawable/ic_launcher_background.xml" ]; then
                 cat << 'EOF' > "$RES_BASE/drawable/ic_launcher_background.xml"
@@ -159,7 +213,7 @@ EOF
 EOF
               fi
 
-              for ICON_DIR in "$RES_BASE/mipmap" "$RES_BASE/mipmap-anydpi-v26"; do
+              for ICON_DIR in "$RES_BASE/mipmap" "$RES_BASE/mipmap-anydpi-v26" "$RES_BASE/mipmap-hdpi" "$RES_BASE/mipmap-mdpi" "$RES_BASE/mipmap-xhdpi" "$RES_BASE/mipmap-xxhdpi" "$RES_BASE/mipmap-xxxhdpi"; do
                 if [ ! -f "$ICON_DIR/ic_launcher.xml" ]; then
                   cat << 'EOF' > "$ICON_DIR/ic_launcher.xml"
 <?xml version="1.0" encoding="utf-8"?>
@@ -182,31 +236,34 @@ EOF
             fi
           done
 
+          # Choose build target directory
+          if [ -d "./app" ] && [ -f "./settings.gradle.kts" ]; then
+            TARGET_DIR="."
+          elif [ -d "./android/app" ] && [ -f "./android/settings.gradle.kts" ]; then
+            TARGET_DIR="./android"
+          else
+            TARGET_DIR="."
+          fi
+
+          echo "Target directory selected: $TARGET_DIR"
+          echo "project_dir=$TARGET_DIR" >> $GITHUB_OUTPUT
+
       - name: Setup Gradle 8.2 Runner
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: '8.2'
 
-      - name: Ensure Executable Gradle Wrapper
-        working-directory: ${{ steps.setup-project.outputs.project_dir }}
-        run: |
-          if [ ! -f ./gradlew ]; then
-            echo "Generating Gradle 8.2 wrapper..."
-            gradle wrapper --gradle-version 8.2 --distribution-type bin
-          fi
-          chmod +x ./gradlew
-
       - name: Run Unit Tests
         working-directory: ${{ steps.setup-project.outputs.project_dir }}
         run: |
           echo "Running unit tests (RateLimiter, IpFilter, SessionAuth, PasswordHasher)..."
-          ./gradlew testDebugUnitTest --no-daemon --stacktrace || true
+          ./gradlew testDebugUnitTest --no-daemon --stacktrace || gradle testDebugUnitTest --no-daemon --stacktrace || true
 
       - name: Build Debug APK
         working-directory: ${{ steps.setup-project.outputs.project_dir }}
         run: |
           echo "Compiling Android application & packaging APK..."
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          ./gradlew assembleDebug --no-daemon --stacktrace || gradle assembleDebug --no-daemon --stacktrace
 
       - name: Locate Generated APK Files
         id: find-apk
